@@ -112,3 +112,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# temp files
+temp.bin
+temp.inp
+temp.rpt
