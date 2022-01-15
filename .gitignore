@@ -117,3 +117,6 @@ dmypy.json
 temp.bin
 temp.inp
 temp.rpt
+
+# Model
+vilamoura_verao_zmc_bomba_quintinhas.inp
