@@ -3,11 +3,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import pickle
+import datetime
+
+
+fn = datetime.datetime.now().strftime("%H%M_%d%m%y")
 
 wn = wntr.network.WaterNetworkModel('networks/vilamoura_verao_zmc_bomba_quintinhas.inp')
 # Adjust simulation options for criticality analyses
-analysis_end_time = 24*3600 
-wn.options.time.duration = analysis_end_time
+# analysis_end_time = 24*3600 
+# wn.options.time.duration = analysis_end_time
 wn.options.hydraulic.demand_model = 'PDD'
 wn.options.hydraulic.required_pressure = 10 # alterar 30 m.c.a 
 wn.options.hydraulic.minimum_pressure = 0 # alterar 5 m.c.a
@@ -54,7 +58,7 @@ sim = wntr.sim.WNTRSimulator(wn)
 results = sim.run_sim()
 
 node_demand=results.node['demand']
-demands = results.node['demand'].drop(['3552', '3566', '3569', '3573', '9833', '9859', '9866', '9869', '1'], axis=1)
+demands = results.node['demand'].drop(reservoir_names, axis=1)
 demand_at_inlet=(demands*3600).sum().sum()
 
 
@@ -67,7 +71,7 @@ print(list_of_segments)
 
 for segment in list_of_segments:
     for index, row in dataframe.iterrows():
-        print(f'Segment: {segment} and Pipe: {index}')
+        print(f'Segment: {segment} of {len(list_of_segments)} and Pipe: {index}')
         wn.reset_initial_values()        
         if segment == row[2]:
             # print(f'close pipe {index} to belong on segment {segment}')
@@ -78,12 +82,13 @@ for segment in list_of_segments:
             cond = wntr.network.controls.TimeOfDayCondition(wn, 'after', '00:00:00')
             ctrl = wntr.network.controls.Control(cond, act)
             wn.add_control('close pipe ' + index, ctrl)
+    wn.write_inpfile('networks/Inp_close_segment_'+'_'+fn+'.inp')
 
     # Run a PDD simulation
     sim = wntr.sim.WNTRSimulator(wn)
     results = sim.run_sim()
 
-    demands = results.node['demand'].drop(['3552', '3566', '3569', '3573', '9833', '9859', '9866', '9869', '1'], axis=1)
+    demands = results.node['demand'].drop(reservoir_names, axis=1)
     demand_threshold=demands.sum().sum()*3600
 
     junctions_impacted[segment] = round(((demand_threshold/demand_at_inlet)*100),0)
@@ -91,9 +96,10 @@ for segment in list_of_segments:
     for index, row in dataframe.iterrows():
         if segment == row[2]:
             wn.remove_control('close pipe ' + index)
+    wn.write_inpfile('networks/Inp_open_segment_'+'_'+fn+'.inp')
 
 # Extract the number of junctions impacted by low pressure conditions for each pipe closure  
 # number_of_junctions_impacted = dict([(k,v) for k,v in junctions_impacted.items()])
 
-with open('criticality_valve_segments.pickle', 'wb') as handle:
+with open('criticality_valve_segments'+'_'+fn+'_'+'.pickle', 'wb') as handle:
     pickle.dump(junctions_impacted, handle, protocol=pickle.HIGHEST_PROTOCOL)
